@@ -143,20 +143,32 @@ sed -i '/run_logged \$OMARCHY_INSTALL\/post-install\/pacman\.sh/d' install/post-
 # Disable wpa_supplicant and configure NetworkManager to use iwd backend.
 # CachyOS enables wpa_supplicant by default, which conflicts with omarchy's iwd,
 # causing WiFi to appear connected but have no IP or connectivity.
+if ! grep -q "OMARCHY_CACHYOS_IWD_FIX" install/config/hardware/network.sh; then
 cat >> install/config/hardware/network.sh << 'NETEOF'
 
+# OMARCHY_CACHYOS_IWD_FIX
 # Disable wpa_supplicant to prevent conflict with iwd
-sudo systemctl disable --now wpa_supplicant.service 2>/dev/null
+sudo systemctl disable --now wpa_supplicant.service 2>/dev/null || true
+
+# Ensure iwd is enabled for NetworkManager's iwd backend
+sudo systemctl enable --now iwd.service 2>/dev/null || true
 
 # Configure NetworkManager to use iwd as its WiFi backend
-if ! grep -q "wifi.backend=iwd" /etc/NetworkManager/NetworkManager.conf 2>/dev/null; then
+if ! grep -q "^wifi.backend=iwd" /etc/NetworkManager/NetworkManager.conf 2>/dev/null; then
   sudo tee -a /etc/NetworkManager/NetworkManager.conf > /dev/null << EOF
 
 [device]
 wifi.backend=iwd
 EOF
 fi
+
+# Reload networking stack and wait briefly for connectivity
+sudo systemctl restart NetworkManager.service 2>/dev/null || true
+if command -v nm-online >/dev/null 2>&1; then
+  nm-online -q --timeout=20 || true
+fi
 NETEOF
+fi
 
 # Pin walker to the omarchy repo so CachyOS doesn't override it with an
 # incompatible version that breaks compatibility with elephant.
