@@ -69,8 +69,8 @@ fi
 
 # ─── 5. Remove old chwd profile ───
 echo "[*] Eliminando perfil chwd anterior..."
-if sudo chwd -l | grep -q "nvidia-open-dkms"; then
-    sudo chwd -r nvidia-open-dkms || true
+if sudo chwd -r nvidia-open-dkms 2>/dev/null; then
+    echo "[*] Perfil nvidia-open-dkms eliminado."
 else
     echo "[*] Perfil nvidia-open-dkms no está instalado. Omitiendo remove."
 fi
