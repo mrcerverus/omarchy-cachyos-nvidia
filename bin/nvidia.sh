@@ -69,7 +69,22 @@ fi
 
 # ─── 5. Remove old chwd profile ───
 echo "[*] Eliminando perfil chwd anterior..."
-sudo chwd -r nvidia-open-dkms --autoconfigure || true
+sudo chwd -r nvidia-open-dkms || true
+
+# ─── 5.5. Network/DNS check before chwd/pacman ───
+echo "[*] Verificando conectividad y DNS antes de instalar perfil NVIDIA..."
+if ! ping -c 1 -W 2 8.8.8.8 >/dev/null 2>&1; then
+    echo "[!] Sin conectividad a internet (fallo ping 8.8.8.8)."
+    echo "    Revisa tu conexión de red y vuelve a intentar."
+    exit 1
+fi
+
+if ! getent hosts archlinux.org >/dev/null 2>&1; then
+    echo "[!] No hay resolución DNS (no se puede resolver archlinux.org)."
+    echo "    Si usas iwd + wpa_supplicant, deshabilita uno para evitar conflictos."
+    echo "    También revisa /etc/resolv.conf y reinicia NetworkManager."
+    exit 1
+fi
 
 # ─── 6. Install new profile ───
 echo "[*] Instalando perfil propietario 580xx via chwd..."
