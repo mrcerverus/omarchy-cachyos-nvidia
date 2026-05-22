@@ -115,10 +115,9 @@ if [ "$NET_OK" -ne 1 ]; then
 fi
 
 if [ "$NET_OK" -ne 1 ]; then
-    echo "[!] Sin conectividad o DNS tras varios intentos."
-    echo "    Revisa NetworkManager y evita conflicto iwd/wpa_supplicant."
-    echo "    Diagnóstico rápido: systemctl status NetworkManager iwd wpa_supplicant --no-pager"
-    exit 1
+    echo "[!] No se pudo confirmar red/DNS con las sondas rápidas."
+    echo "    Se continuará de todas formas y chwd/pacman validará conectividad real."
+    echo "    Si falla, revisa: systemctl status NetworkManager iwd wpa_supplicant --no-pager"
 fi
 
 # ─── 6. Install new profile ───
