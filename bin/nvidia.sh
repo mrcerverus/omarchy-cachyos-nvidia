@@ -69,7 +69,11 @@ fi
 
 # ─── 5. Remove old chwd profile ───
 echo "[*] Eliminando perfil chwd anterior..."
-sudo chwd -r nvidia-open-dkms || true
+if sudo chwd -l | grep -q "nvidia-open-dkms"; then
+    sudo chwd -r nvidia-open-dkms || true
+else
+    echo "[*] Perfil nvidia-open-dkms no está instalado. Omitiendo remove."
+fi
 
 # ─── 5.5. Network/DNS check before chwd/pacman ───
 echo "[*] Verificando conectividad y DNS antes de instalar perfil NVIDIA..."
