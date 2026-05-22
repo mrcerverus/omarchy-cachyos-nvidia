@@ -1,6 +1,6 @@
 # omarchy-on-cachyos
 
-UPDATE 1-October-2025: The install script has been updated to support Omarchy 3.0+ out of the box. 
+UPDATE 22-May-2025: The install script has been updated to support Omarchy 3.0+ out of the box. 
 
 ## 1. Introduction
 
