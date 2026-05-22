@@ -94,8 +94,30 @@ for attempt in 1 2 3 4 5; do
 done
 
 if [ "$NET_OK" -ne 1 ]; then
+    echo "[*] Intentando recuperar red reiniciando NetworkManager..."
+    sudo systemctl restart NetworkManager || true
+    sleep 4
+
+    for attempt in 1 2 3; do
+        if getent hosts archlinux.org >/dev/null 2>&1; then
+            NET_OK=1
+            break
+        fi
+
+        if ping -c 1 -W 2 1.1.1.1 >/dev/null 2>&1 || ping -c 1 -W 2 8.8.8.8 >/dev/null 2>&1; then
+            NET_OK=1
+            break
+        fi
+
+        echo "[*] Red aún no disponible tras reinicio (intento $attempt/3)."
+        sleep 2
+    done
+fi
+
+if [ "$NET_OK" -ne 1 ]; then
     echo "[!] Sin conectividad o DNS tras varios intentos."
     echo "    Revisa NetworkManager y evita conflicto iwd/wpa_supplicant."
+    echo "    Diagnóstico rápido: systemctl status NetworkManager iwd wpa_supplicant --no-pager"
     exit 1
 fi
 
