@@ -9,6 +9,70 @@ for cmd in lspci sudo pacman; do
     fi
 done
 
+remove_pkg_if_installed() {
+    local pkg="$1"
+    if pacman -Qq "$pkg" &>/dev/null; then
+        echo "[*] Removiendo paquete conflictivo: $pkg"
+        sudo pacman -Rns --noconfirm "$pkg" || {
+            echo "[!] No se pudo remover $pkg de forma limpia. Intentando remove forzado..."
+            sudo pacman -Rdd --noconfirm "$pkg" || true
+        }
+    fi
+}
+
+cleanup_open_nvidia_stack() {
+    echo "[*] Limpiando stack NVIDIA open para evitar conflictos..."
+    remove_pkg_if_installed "libxnvctrl"
+    remove_pkg_if_installed "nvidia-open-dkms"
+    remove_pkg_if_installed "linux-cachyos-nvidia-open"
+    remove_pkg_if_installed "linux-cachyos-lts-nvidia-open"
+}
+
+ensure_kernel_headers_present() {
+    local missing=0
+
+    if pacman -Qq linux-cachyos &>/dev/null && ! pacman -Qq linux-cachyos-headers &>/dev/null; then
+        echo "[!] Falta linux-cachyos-headers para el kernel linux-cachyos."
+        missing=1
+    fi
+
+    if pacman -Qq linux-cachyos-lts &>/dev/null && ! pacman -Qq linux-cachyos-lts-headers &>/dev/null; then
+        echo "[!] Falta linux-cachyos-lts-headers para el kernel linux-cachyos-lts."
+        missing=1
+    fi
+
+    if [ "$missing" -eq 1 ]; then
+        echo "    Instala los headers faltantes antes de continuar para evitar fallos DKMS."
+        return 1
+    fi
+
+    return 0
+}
+
+run_chwd_with_retry() {
+    local chwd_log
+    chwd_log=$(mktemp)
+
+    if sudo chwd -a 2>&1 | tee "$chwd_log"; then
+        rm -f "$chwd_log"
+        return 0
+    fi
+
+    if grep -q "NVIDIA-MODULE" "$chwd_log" || grep -q "están en conflicto" "$chwd_log" || grep -q "are in conflict" "$chwd_log"; then
+        echo "[!] Detectado conflicto NVIDIA-MODULE. Reintentando tras limpiar stack open..."
+        cleanup_open_nvidia_stack
+        if sudo chwd -a; then
+            rm -f "$chwd_log"
+            return 0
+        fi
+    fi
+
+    echo "[!] chwd -a falló. Revisa los logs en /var/log/chwd/"
+    echo "    También puedes revisar: pacman -Q | grep -E 'nvidia|linux-cachyos.*nvidia'"
+    rm -f "$chwd_log"
+    return 1
+}
+
 # ─── Secure Boot check ───
 if [ -d /sys/firmware/efi ] && command -v mokutil &>/dev/null; then
     if mokutil --sb-state 2>/dev/null | grep -qi "enabled"; then
@@ -54,7 +118,11 @@ fi
 
 # ─── 3. Kill the conflicts ───
 echo "[*] Eliminando paquetes conflictivos de driver open-source..."
-sudo pacman -Rdd --noconfirm libxnvctrl linux-cachyos-nvidia-open linux-cachyos-lts-nvidia-open nvidia-open-dkms 2>/dev/null || true
+cleanup_open_nvidia_stack
+
+if ! ensure_kernel_headers_present; then
+    exit 1
+fi
 
 # ─── 4. Patch the chwd ID list ───
 if ! grep -q "$GPU_ID" "$CHWD_FILE"; then
@@ -122,15 +190,20 @@ fi
 
 # ─── 6. Install new profile ───
 echo "[*] Instalando perfil propietario 580xx via chwd..."
-if ! sudo chwd -a; then
-    echo "[!] chwd -a falló. Revisa los logs en /var/log/chwd/"
-    echo "    Posibles causas: GPU no soportada por driver 580xx, o conflicto de dependencias."
+if ! run_chwd_with_retry; then
+    echo "    Posibles causas: GPU no soportada por driver 580xx, conflicto de dependencias o falta de headers."
     exit 1
 fi
 
 # ─── 7. Install VA-API utils ───
 echo "[*] Instalando libva-utils..."
 sudo pacman -S --needed --noconfirm libva-utils
+
+if ! pacman -Qq nvidia-580xx-dkms &>/dev/null; then
+    echo "[!] No se detecta nvidia-580xx-dkms instalado tras chwd."
+    echo "    Ejecuta: sudo pacman -Q | grep -E 'nvidia|linux-cachyos.*nvidia'"
+    exit 1
+fi
 
 # ─── 8. Configurar parámetros del kernel GRUB ───
 echo "[*] Configurando parámetros del kernel para NVIDIA..."
