@@ -69,7 +69,7 @@ fi
 
 # ─── 5. Remove old chwd profile ───
 echo "[*] Eliminando perfil chwd anterior..."
-sudo chwd -r nvidia-open-dkms --noconfirm || true
+sudo chwd -r nvidia-open-dkms --autoconfigure || true
 
 # ─── 6. Install new profile ───
 echo "[*] Instalando perfil propietario 580xx via chwd..."

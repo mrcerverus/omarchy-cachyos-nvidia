@@ -12,6 +12,24 @@ if ! command -v git &> /dev/null; then
     exit 1
 fi
 
+# ─── Network/DNS check ───
+echo "Verificando conectividad de red y DNS..."
+if ! ping -c 1 -W 3 8.8.8.8 &>/dev/null; then
+    echo "Error: No hay conectividad a internet (no se puede alcanzar 8.8.8.8)."
+    echo "  Verifica tu conexión de red antes de ejecutar el instalador."
+    exit 1
+fi
+if ! ping -c 1 -W 3 archlinux.org &>/dev/null; then
+    echo "Error: No se puede resolver DNS (archlinux.org no responde)."
+    echo "  Posibles causas:"
+    echo "  - WiFi conectado pero sin IP (conflicto wpa_supplicant/iwd)"
+    echo "  - /etc/resolv.conf mal configurado"
+    echo "  - Falta de conectividad a internet"
+    echo "  Solución rápida: sudo systemctl restart iwd NetworkManager"
+    exit 1
+fi
+echo "Conectividad de red y DNS OK."
+
 # ─── Clone Omarchy ───
 echo "Clonando Omarchy desde el repositorio..."
 OMARCHY_DIR="../omarchy"
