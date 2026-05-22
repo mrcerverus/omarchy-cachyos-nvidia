@@ -1,5 +1,6 @@
 #!/bin/bash
 set -e
+set -o pipefail
 
 # ─── Prerequisites check ───
 for cmd in lspci sudo pacman; do
@@ -26,6 +27,13 @@ cleanup_open_nvidia_stack() {
     remove_pkg_if_installed "nvidia-open-dkms"
     remove_pkg_if_installed "linux-cachyos-nvidia-open"
     remove_pkg_if_installed "linux-cachyos-lts-nvidia-open"
+}
+
+cleanup_proprietary_nvidia_conflicts() {
+    echo "[*] Limpiando conflictos de ramas propietarias NVIDIA (no-580xx)..."
+    remove_pkg_if_installed "nvidia-utils"
+    remove_pkg_if_installed "lib32-nvidia-utils"
+    remove_pkg_if_installed "opencl-nvidia"
 }
 
 ensure_kernel_headers_present() {
@@ -60,6 +68,16 @@ run_chwd_with_retry() {
 
     if grep -q "NVIDIA-MODULE" "$chwd_log" || grep -q "están en conflicto" "$chwd_log" || grep -q "are in conflict" "$chwd_log"; then
         echo "[!] Detectado conflicto NVIDIA-MODULE. Reintentando tras limpiar stack open..."
+        cleanup_open_nvidia_stack
+        if sudo chwd -a; then
+            rm -f "$chwd_log"
+            return 0
+        fi
+    fi
+
+    if grep -q "nvidia-libgl" "$chwd_log" || grep -q "nvidia-580xx-utils" "$chwd_log" || grep -q "nvidia-utils" "$chwd_log"; then
+        echo "[!] Detectado conflicto entre ramas propietarias (ej. 595 vs 580xx)."
+        cleanup_proprietary_nvidia_conflicts
         cleanup_open_nvidia_stack
         if sudo chwd -a; then
             rm -f "$chwd_log"
@@ -119,6 +137,7 @@ fi
 # ─── 3. Kill the conflicts ───
 echo "[*] Eliminando paquetes conflictivos de driver open-source..."
 cleanup_open_nvidia_stack
+cleanup_proprietary_nvidia_conflicts
 
 if ! ensure_kernel_headers_present; then
     exit 1
@@ -196,14 +215,20 @@ if ! run_chwd_with_retry; then
 fi
 
 # ─── 7. Install VA-API utils ───
-echo "[*] Instalando libva-utils..."
-sudo pacman -S --needed --noconfirm libva-utils
-
 if ! pacman -Qq nvidia-580xx-dkms &>/dev/null; then
     echo "[!] No se detecta nvidia-580xx-dkms instalado tras chwd."
     echo "    Ejecuta: sudo pacman -Q | grep -E 'nvidia|linux-cachyos.*nvidia'"
     exit 1
 fi
+
+if ! pacman -Qq nvidia-580xx-utils &>/dev/null; then
+    echo "[!] No se detecta nvidia-580xx-utils instalado tras chwd."
+    echo "    Ejecuta: sudo pacman -Q | grep -E 'nvidia|linux-cachyos.*nvidia'"
+    exit 1
+fi
+
+echo "[*] Instalando libva-utils..."
+sudo pacman -S --needed --noconfirm libva-utils
 
 # ─── 8. Configurar parámetros del kernel GRUB ───
 echo "[*] Configurando parámetros del kernel para NVIDIA..."
