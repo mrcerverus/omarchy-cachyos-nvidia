@@ -77,16 +77,25 @@ fi
 
 # ─── 5.5. Network/DNS check before chwd/pacman ───
 echo "[*] Verificando conectividad y DNS antes de instalar perfil NVIDIA..."
-if ! ping -c 1 -W 2 8.8.8.8 >/dev/null 2>&1; then
-    echo "[!] Sin conectividad a internet (fallo ping 8.8.8.8)."
-    echo "    Revisa tu conexión de red y vuelve a intentar."
-    exit 1
-fi
+NET_OK=0
+for attempt in 1 2 3 4 5; do
+    if getent hosts archlinux.org >/dev/null 2>&1; then
+        NET_OK=1
+        break
+    fi
 
-if ! getent hosts archlinux.org >/dev/null 2>&1; then
-    echo "[!] No hay resolución DNS (no se puede resolver archlinux.org)."
-    echo "    Si usas iwd + wpa_supplicant, deshabilita uno para evitar conflictos."
-    echo "    También revisa /etc/resolv.conf y reinicia NetworkManager."
+    if ping -c 1 -W 2 1.1.1.1 >/dev/null 2>&1 || ping -c 1 -W 2 8.8.8.8 >/dev/null 2>&1; then
+        NET_OK=1
+        break
+    fi
+
+    echo "[*] Red no lista aún (intento $attempt/5). Reintentando en 2s..."
+    sleep 2
+done
+
+if [ "$NET_OK" -ne 1 ]; then
+    echo "[!] Sin conectividad o DNS tras varios intentos."
+    echo "    Revisa NetworkManager y evita conflicto iwd/wpa_supplicant."
     exit 1
 fi
 
