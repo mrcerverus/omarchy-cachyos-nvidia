@@ -34,6 +34,7 @@ cleanup_proprietary_nvidia_conflicts() {
     remove_pkg_if_installed "nvidia-utils"
     remove_pkg_if_installed "lib32-nvidia-utils"
     remove_pkg_if_installed "opencl-nvidia"
+    remove_pkg_if_installed "lib32-opencl-nvidia"
 }
 
 ensure_kernel_headers_present() {
@@ -66,19 +67,10 @@ run_chwd_with_retry() {
         return 0
     fi
 
-    if grep -q "NVIDIA-MODULE" "$chwd_log" || grep -q "están en conflicto" "$chwd_log" || grep -q "are in conflict" "$chwd_log"; then
-        echo "[!] Detectado conflicto NVIDIA-MODULE. Reintentando tras limpiar stack open..."
+    if grep -q "NVIDIA-MODULE" "$chwd_log" || grep -q "nvidia-libgl" "$chwd_log" || grep -q "opencl" "$chwd_log" || grep -q "lib32-opencl-nvidia" "$chwd_log" || grep -q "nvidia-580xx-utils" "$chwd_log" || grep -q "nvidia-utils" "$chwd_log" || grep -q "están en conflicto" "$chwd_log" || grep -q "are in conflict" "$chwd_log"; then
+        echo "[!] Detectado conflicto de paquetes NVIDIA. Reintentando tras limpieza completa..."
         cleanup_open_nvidia_stack
-        if sudo chwd -a; then
-            rm -f "$chwd_log"
-            return 0
-        fi
-    fi
-
-    if grep -q "nvidia-libgl" "$chwd_log" || grep -q "nvidia-580xx-utils" "$chwd_log" || grep -q "nvidia-utils" "$chwd_log"; then
-        echo "[!] Detectado conflicto entre ramas propietarias (ej. 595 vs 580xx)."
         cleanup_proprietary_nvidia_conflicts
-        cleanup_open_nvidia_stack
         if sudo chwd -a; then
             rm -f "$chwd_log"
             return 0
