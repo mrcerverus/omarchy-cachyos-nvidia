@@ -150,6 +150,37 @@ chmod +x install-omarchy-on-cachyos.sh
 
 **Note:** Please review the script contents before running to understand what changes will be made to your system.
 
+### Troubleshooting NVIDIA (conflictos 595 -> 580xx)
+
+Si `chwd -a` falla con conflictos como:
+
+- `nvidia-580xx-utils` vs `nvidia-utils`
+- `lib32-opencl-nvidia-580xx` vs `lib32-opencl-nvidia`
+- `nvidia-580xx-settings` vs `nvidia-settings`
+- `nvidia-580xx-dkms` vs `linux-cachyos-lts-nvidia-open`
+
+entonces hay mezcla de ramas NVIDIA (`595/open`) con la rama objetivo `580xx`.
+
+El script `bin/nvidia.sh` ya intenta limpiar estos casos automaticamente. Si aun
+asi falla, ejecuta esta limpieza manual y vuelve a correr `chwd`:
+
+```bash
+sudo pacman -Rns --noconfirm \
+  nvidia-utils nvidia-settings lib32-nvidia-utils \
+  opencl-nvidia lib32-opencl-nvidia \
+  nvidia-open-dkms linux-cachyos-nvidia-open linux-cachyos-lts-nvidia-open
+
+sudo chwd -a
+```
+
+Verifica despues:
+
+```bash
+pacman -Q | grep -E 'nvidia|opencl|linux-cachyos.*nvidia'
+chwd --listinstalled
+nvidia-smi
+```
+
 ## 6. Statement of Lack of Warranty
 
 THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.

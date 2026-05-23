@@ -49,3 +49,37 @@ instalando omarchy sobre CachyOS. El script nvidia.sh fallaba en:
 1. `chwd -r nvidia-open-dkms --noconfirm` — flag inválido
 2. `chwd -a` → `pacman -Syu` — todos los mirrors fallaban con
    `Could not resolve host` (problema de DNS, posible conflicto wpa_supplicant/iwd)
+
+### Improve: hardening completo de `nvidia.sh` para migracion a 580xx
+
+- **`bin/nvidia.sh`**: Se agrega `set -o pipefail` para no ocultar fallos de
+  `chwd -a` cuando se captura salida con `tee`.
+- **`bin/nvidia.sh`**: Nuevo flujo idempotente de limpieza de conflictos con
+  funciones helper:
+  `remove_pkg_if_installed`, `cleanup_open_nvidia_stack`,
+  `cleanup_proprietary_nvidia_conflicts`, `ensure_kernel_headers_present` y
+  `run_chwd_with_retry`.
+- **`bin/nvidia.sh`**: Limpieza ampliada de conflictos entre ramas NVIDIA para
+  transición 595 → 580xx, incluyendo:
+  `nvidia-open-dkms`, `linux-cachyos-nvidia-open`,
+  `linux-cachyos-lts-nvidia-open`, `nvidia-utils`, `nvidia-settings`,
+  `lib32-nvidia-utils`, `opencl-nvidia`, `lib32-opencl-nvidia`.
+- **`bin/nvidia.sh`**: Reintento automático de `chwd -a` cuando detecta
+  conflictos como `NVIDIA-MODULE`, `nvidia-libgl`, conflictos OpenCL y mensajes
+  `están in conflict/are in conflict`.
+- **`bin/nvidia.sh`**: Verificación estricta post-`chwd` para exigir
+  `nvidia-580xx-dkms` y `nvidia-580xx-utils` antes de continuar.
+- **`bin/nvidia.sh`**: Instalación de `libva-utils` movida para ejecutarse solo
+  si el stack NVIDIA propietario quedó instalado correctamente.
+
+### Contexto actualizado del incidente
+
+- El problema inicial de red/DNS quedó superado, pero aparecieron conflictos de
+  dependencias al coexistir paquetes NVIDIA de ramas distintas (595 y 580xx).
+- Conflictos reportados y cubiertos en el script:
+  - `nvidia-580xx-dkms` vs `linux-cachyos-lts-nvidia-open` (`NVIDIA-MODULE`)
+  - `nvidia-580xx-utils` vs `nvidia-utils` (`nvidia-libgl`)
+  - `lib32-opencl-nvidia-580xx` vs `lib32-opencl-nvidia`
+  - `nvidia-580xx-settings` vs `nvidia-settings`
+- Objetivo operativo consolidado: mantener ambos kernels (`linux-cachyos` y
+  `linux-cachyos-lts`) con un unico stack propietario coherente (580xx DKMS).
