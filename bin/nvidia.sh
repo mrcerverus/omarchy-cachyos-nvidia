@@ -32,6 +32,7 @@ cleanup_open_nvidia_stack() {
 cleanup_proprietary_nvidia_conflicts() {
     echo "[*] Limpiando conflictos de ramas propietarias NVIDIA (no-580xx)..."
     remove_pkg_if_installed "nvidia-utils"
+    remove_pkg_if_installed "nvidia-settings"
     remove_pkg_if_installed "lib32-nvidia-utils"
     remove_pkg_if_installed "opencl-nvidia"
     remove_pkg_if_installed "lib32-opencl-nvidia"
